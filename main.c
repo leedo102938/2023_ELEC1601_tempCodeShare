@@ -1,3 +1,5 @@
+// Testing edit code in GitHub
+
 #define SDL_MAIN_HANDLED
 #include "stdio.h"
 #include "stdlib.h"
