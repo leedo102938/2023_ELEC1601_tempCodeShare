@@ -12,6 +12,8 @@ void setup_robot(struct Robot *robot){
     robot->currentSpeed = 0;
     robot->crashed = 0;
     robot->auto_mode = 0;
+    // ------------------------------
+    robot->counter = 0;
 
     printf("Press arrow keys to move manually, or enter to move automatically\n\n");
 }
@@ -327,24 +329,83 @@ void robotMotorMove(struct Robot * robot, int crashed) {
 
 void robotAutoMotorMove(struct Robot * robot, int front_centre_sensor, int left_sensor, int right_sensor) {
 
-    /*
-    if (front_centre_sensor == 0) {
-        if (robot->currentSpeed<2)
-            robot->direction = UP;
+    // robot->direction follows last value declared
+    // Essential logic : DO NOT GO TO THE PREVIOUS PATH
+    // keep attached to RIGHT wall
+    // The count of the moves helps; in the first two moves, get the robot to the right wall.
+
+    if(robot->counter < 1){ // 1st run only
+        robot->direction = RIGHT;
+        robot->counter++;
     }
-    else if ((robot->currentSpeed>0) && ((front_centre_sensor >= 1) && (left_sensor == 0) && (right_sensor == 0)) ) {
+    //After it faces the right wall, need the robot to go forward
+    // After reaching right wall, reset direction to UP(perpendicular) = stabilize the robot
+    else if ( robot->counter < 2){ // 2nd~? run only
+        if(robot->currentSpeed < 6 ){
+            robot->direction = UP;
+        }
+
+        if(right_sensor > 0 || front_centre_sensor > 0){
+            robot->counter++;
+        } // END OF INITIAL SETTING
+    }
+
+
+    // When at corner : assuming it stopped, turn left until it gets clear way to move
+    // Runs only If decelerated successfully <<< NOT STASIS YET = goes in to next IF
+    else if(robot->currentSpeed == 0 && right_sensor > 0 && front_centre_sensor > 0 && left_sensor > 0){
+        robot->direction = LEFT;
+    }
+    // When at corner : When still moving
+    else if (front_centre_sensor > 0 && right_sensor > 0 && left_sensor > 0){
         robot->direction = DOWN;
     }
-    else if ((robot->currentSpeed==0) && ((front_centre_sensor >= 1) && (left_sensor == 0)) ) {
-        robot->direction = LEFT;
+
+
+    /*
+    // FOR EMERGENCY : TOO CLOSE TO ANY WALL
+    else if (robot->currentSpeed > 5 && (front_centre_sensor > 2 || left_sensor > 2 || right_sensor > 2)){
+        robot->direction = DOWN;
     }
-    else if ((robot->currentSpeed>0) && ((right_sensor >= 1)) ) {
-        robot->direction = LEFT;
-    }
-    else if ((robot->currentSpeed>0) && ((left_sensor >= 1)) ) {
-        robot->direction = RIGHT;
-    }
+
+    This code run when the robot needs to immediately avoid wall; basically, instead of turning it just slow down and still approach the wall
+    Initial idea was to decelerate first and buy some time to safely turn, but would need better logic than this, thus removed for now
     */
 
+
+    // Except for dead end cases, existence of front wall = ONLY to left path since robot is following right wall
+    else if ( front_centre_sensor > 0){
+        robot->direction = LEFT;
+    }
+
+
+    // Acceptable distance from the right wall = between 1 and 3 so it does not go too close to the walls.
+    // Best option = Keep it on center line
+
+    // Distance with right wall is good >>> allowed to accelerate
+    else if (front_centre_sensor == 0 && right_sensor> 0 && right_sensor < 3){
+        if(robot->currentSpeed < 6){
+            robot->direction = UP;
+        }
+    }
+
+
+    // When the robot is closer to the left wall than the right wall
+    else if (left_sensor > right_sensor){
+        robot->direction = RIGHT;
+    }
+    // When the robot is closer to the right wall than the left wall
+    else if (right_sensor >left_sensor){
+        robot->direction = LEFT;
+    }
+
+    // When the robot is moving away from right wall; return to desired position
+    else if (right_sensor<2){
+        robot->direction = RIGHT;
+    }
+    // When the robot is moving too close to right wall: return to desired position
+    else if (right_sensor>3){
+        robot->direction = LEFT;
+    }
 
 }
